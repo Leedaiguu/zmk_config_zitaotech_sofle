@@ -110,6 +110,11 @@
             bindings = <&kp LA(F4)>;
             key-positions = <58 4>;
         };
+
+        CTRL_W {
+            bindings = <&kp LC(W)>;
+            key-positions = <21 24>;
+        };
     };
 
     keymap {
@@ -127,7 +132,7 @@
 
             sensor-bindings =
                 <&inc_dec_kp C_VOLUME_UP C_VOLUME_DOWN>,
-                <&inc_dec_kp PG_DN PG_UP>;
+                <&inc_dec_kp PG_UP PG_DN>;
         };
 
         func_layer {
