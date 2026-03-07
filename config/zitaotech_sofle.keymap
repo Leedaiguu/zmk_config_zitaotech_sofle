@@ -56,11 +56,10 @@
             bindings = <&bt BT_NXT>, <&bt BT_PRV>;
         };
 
-        mouse: mouse {
-            compatible = "zmk,behavior-tap-dance";
-            label = "MOUSE";
-            #binding-cells = <0>;
-            bindings = <&mkp MB1>, <&mkp MB2>;
+        mouse_keypress: mouse_keypress {
+            compatible = "zmk,behavior-mouse-key-press";
+            label = "MOUSE_KEYPRESS";
+            #binding-cells = <1>;
         };
     };
 
@@ -128,7 +127,7 @@
 
             sensor-bindings =
                 <&inc_dec_kp C_VOLUME_UP C_VOLUME_DOWN>,
-                <&inc_dec_kp C_VOLUME_UP C_VOLUME_DOWN>;
+                <&inc_dec_kp PG_DN PG_UP>;
         };
 
         func_layer {
@@ -157,7 +156,7 @@
 
         calculator {
             bindings = <
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans           &trans           &kp KP_NUMBER_7  &kp KP_NUMBER_8  &kp KP_NUMBER_9  &kp KP_MINUS     &trans
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &kp KP_NUMLOCK   &trans           &kp KP_NUMBER_7  &kp KP_NUMBER_8  &kp KP_NUMBER_9  &kp KP_MINUS     &trans
 &trans  &trans  &trans  &trans  &trans  &trans  &trans  &kp KP_NUMBER_4  &kp KP_NUMBER_5  &kp KP_NUMBER_6  &kp KP_PLUS      &trans
 &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans           &trans           &kp KP_NUMBER_1  &kp KP_NUMBER_2  &kp KP_NUMBER_3  &kp KP_MULTIPLY  &trans
 &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans           &trans           &trans           &trans           &kp KP_NUMBER_0  &kp KP_DOT       &kp EQUAL  &kp KP_DIVIDE  &trans
