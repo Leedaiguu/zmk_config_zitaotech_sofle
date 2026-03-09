@@ -19,7 +19,6 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
-#include <zmk/hid.h>
 
 #include "custom_led.h"
 
@@ -195,10 +194,19 @@ static void trackpoint_poll_work(struct k_work *work)
                     dy = dy * accel;
                 }
 
-                /* HID mouse movement */
+                /* pointer movement */
 
-                zmk_hid_mouse_movement_set(-dx, -dy);
-                zmk_hid_mouse_report();
+                input_report_rel(dev,
+                                 INPUT_REL_X,
+                                 -dx,
+                                 false,
+                                 K_FOREVER);
+
+                input_report_rel(dev,
+                                 INPUT_REL_Y,
+                                 -dy,
+                                 true,
+                                 K_FOREVER);
             }
         }
 
