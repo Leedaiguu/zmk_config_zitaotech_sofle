@@ -25,11 +25,11 @@ LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 #define GPIO0_DEV DT_NODELABEL(gpio0)
 #define GPIO1_DEV DT_NODELABEL(gpio1)
 
-/* ==== Config ==== */
-#define BASE_MOVE_PIXELS 2
-#define EXPONENTIAL_BASE 1.12f
-#define SPEED_SCALE 60.0f
-#define REPORT_INTERVAL_MS 10
+/* ==== Config (Tuned) ==== */
+#define BASE_MOVE_PIXELS 1
+#define EXPONENTIAL_BASE 1.08f
+#define SPEED_SCALE 40.0f
+#define REPORT_INTERVAL_MS 15
 
 static int dx_acc = 0;
 static int dy_acc = 0;
