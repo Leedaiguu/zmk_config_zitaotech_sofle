@@ -1,6 +1,5 @@
 /*
  * TrackPoint HID over I2C Driver (Zephyr Input Subsystem)
- * Simplified scroll logic version
  * Copyright (c) 2025 ZitaoTech
  * SPDX-License-Identifier: MIT
  */
@@ -20,6 +19,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
+#include <zmk/hid.h>
 
 #include "custom_led.h"
 
@@ -110,7 +110,7 @@ static int trackpoint_read_packet(
     return 0;
 }
 
-/* ========= poll work ========= */
+/* ========= poll ========= */
 
 static void trackpoint_poll_work(struct k_work *work)
 {
@@ -195,17 +195,10 @@ static void trackpoint_poll_work(struct k_work *work)
                     dy = dy * accel;
                 }
 
-                input_report_rel(dev,
-                                 INPUT_REL_X,
-                                 -dx,
-                                 false,
-                                 K_FOREVER);
+                /* ZMK HID movement */
 
-                input_report_rel(dev,
-                                 INPUT_REL_Y,
-                                 -dy,
-                                 true,
-                                 K_FOREVER);
+                zmk_hid_mouse_movement_update(-dx, -dy);
+                zmk_hid_mouse_movement_send();
             }
         }
 
