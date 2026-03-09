@@ -18,206 +18,184 @@
 #define BOT bootloader
 
 / {
+    behaviors {
+        td0: tap_dance_0 {
+            compatible = "zmk,behavior-tap-dance";
+            #binding-cells = <0>;
+            tapping-term-ms = <400>;
+            bindings = <&mkp LCLK>, <&bt BT_CLR>;
+        };
 
-behaviors {
+        hm: homerow_mods {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            tapping-term-ms = <200>;
+            bindings = <&kp &kp>;
+            label = "HOMEROW_MODS";
+            quick-tap-ms = <130>;
+            flavor = "tap-preferred";
+        };
 
-td0: tap_dance_0 {
-compatible = "zmk,behavior-tap-dance";
-#binding-cells = <0>;
-tapping-term-ms = <400>;
-bindings = <&mkp LCLK>, <&bt BT_CLR>;
-};
+        sp_sc: behavior_spacescroll {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            flavor = "tap-preferred";
+            tapping-term-ms = <200>;
+            bindings = <&none &kp>;
+        };
 
-hm: homerow_mods {
-compatible = "zmk,behavior-hold-tap";
-#binding-cells = <2>;
-tapping-term-ms = <200>;
-bindings = <&kp &kp>;
-label = "HOMEROW_MODS";
-quick-tap-ms = <130>;
-flavor = "tap-preferred";
-};
+        BLE_encoder: BLE_encoder {
+            compatible = "zmk,behavior-sensor-rotate";
+            #sensor-binding-cells = <0>;
+            bindings = <&bt BT_NXT>, <&bt BT_PRV>;
+        };
 
-sp_sc: behavior_spacescroll {
-compatible = "zmk,behavior-hold-tap";
-#binding-cells = <2>;
-flavor = "tap-preferred";
-tapping-term-ms = <200>;
-bindings = <&none &kp>;
-};
+        mouse_keypress: mouse_keypress {
+            compatible = "zmk,behavior-mouse-key-press";
+            label = "MOUSE_KEYPRESS";
+            #binding-cells = <1>;
+        };
+    };
 
-BLE_encoder: BLE_encoder {
-compatible = "zmk,behavior-sensor-rotate";
-#sensor-binding-cells = <0>;
-bindings = <&bt BT_NXT>, <&bt BT_PRV>;
-};
+    combos {
+        compatible = "zmk,combos";
 
-mouse_keypress: mouse_keypress {
-compatible = "zmk,behavior-mouse-key-press";
-label = "MOUSE_KEYPRESS";
-#binding-cells = <1>;
-};
+        mulgyul {
+            bindings = <&kp TILDE>;
+            key-positions = <40 0>;
+        };
 
-};
+        Q_mark {
+            bindings = <&kp QUESTION>;
+            key-positions = <55 54>;
+        };
 
-combos {
+        MS_DW {
+            bindings = <&msc SCRL_DOWN>;
+            key-positions = <35 36>;
+        };
 
-compatible = "zmk,combos";
+        MS_UP {
+            bindings = <&msc SCRL_UP>;
+            key-positions = <21 22>;
+        };
 
-mulgyul {
-bindings = <&kp TILDE>;
-key-positions = <40 0>;
-};
+        MS_B2 {
+            bindings = <&mkp MB2>;
+            key-positions = <34 35>;
+        };
 
-Q_mark {
-bindings = <&kp QUESTION>;
-key-positions = <55 54>;
-};
+        MS_B1 {
+            bindings = <&mkp MB1>;
+            key-positions = <20 21>;
+        };
 
-MS_DW {
-bindings = <&msc SCRL_DOWN>;
-key-positions = <35 36>;
-};
+        MS_Forward {
+            bindings = <&mkp MB5>;
+            key-positions = <21 23>;
+        };
 
-MS_UP {
-bindings = <&msc SCRL_UP>;
-key-positions = <21 22>;
-};
+        MS_Back {
+            bindings = <&mkp MB4>;
+            key-positions = <35 37>;
+        };
 
-MS_B2 {
-bindings = <&mkp MB2>;
-key-positions = <34 35>;
-};
+        AltF4 {
+            bindings = <&kp LA(F4)>;
+            key-positions = <58 4>;
+        };
 
-MS_B1 {
-bindings = <&mkp MB1>;
-key-positions = <20 21>;
-};
+        CTRL_W {
+            bindings = <&kp LC(W)>;
+            key-positions = <21 24>;
+        };
 
-MS_Forward {
-bindings = <&mkp MB5>;
-key-positions = <21 23>;
-};
+        Refresh {
+            bindings = <&kp F5>;
+            key-positions = <51 52>;
+        };
+    };
 
-MS_Back {
-bindings = <&mkp MB4>;
-key-positions = <35 37>;
-};
+    keymap {
+        compatible = "zmk,keymap";
 
-AltF4 {
-bindings = <&kp LA(F4)>;
-key-positions = <58 4>;
-};
+        default_layer {
+            display-name = "QWERTY";
+            bindings = <
+&kp ESC         &kp N1            &kp N2    &kp N3     &kp N4  &kp N5    &kp C_MUTE     &kp F5         &kp N6    &kp N7    &kp N8  &kp N9         &kp N0     &kp DEL
+&kp TAB         &kp Q             &kp W     &kp E      &kp R   &kp T     &kp Y          &kp U          &kp I     &kp O     &kp P   &kp BACKSPACE
+&mt LCTRL RALT  &lt 2 A           &kp S     &kp D      &kp F   &kp G     &mkp LCLK      &mkp LCLK      &kp H     &kp J     &kp K   &kp L          &mo 2      &kp ENTER
+&kp LSHFT       &kp Z             &kp X     &kp C      &kp V   &kp B     &kp LC(MINUS)  &kp LC(EQUAL)  &mkp MB3  &mkp MB2  &kp N   &kp M          &kp COMMA  &kp DOT    &kp SLASH  &kp RIGHT_SHIFT
+&kp LWIN        &kp LEFT_CONTROL  &kp LALT  &kp SPACE  &mo 1   &mkp MB1  &kp SPACE      &mo 3          &mo 4     &mo 5
+            >;
 
-CTRL_W {
-bindings = <&kp LC(W)>;
-key-positions = <21 24>;
-};
+            sensor-bindings =
+                <&inc_dec_kp C_VOLUME_UP C_VOLUME_DOWN>,
+                <&inc_dec_kp PG_UP PG_DN>;
+        };
 
-Refresh {
-bindings = <&kp F5>;
-key-positions = <51 52>;
-};
+        func_layer {
+            display-name = "FUNC";
+            bindings = <
+&kp GRAVE  &kp F1  &kp F2          &kp F3          &kp F4           &kp F5           &bt BT_CLR  &bootloader  &kp F6        &kp F7          &kp F8          &kp F9           &kp F10  &kp BSPC
+&trans     &trans  &trans          &kp UP_ARROW    &trans           &trans           &kp F11     &kp F12      &kp UP_ARROW  &trans          &trans          &kp ENTER
+&trans     &trans  &kp LEFT_ARROW  &kp DOWN_ARROW  &kp RIGHT_ARROW  &trans           &mkp RCLK   &mkp RCLK    &trans        &kp LEFT_ARROW  &kp DOWN_ARROW  &kp RIGHT_ARROW  &trans   &kp SQT
+&trans     &trans  &trans          &trans          &trans           &rgb_ug RGB_TOG  &trans      &trans       &bl BL_DEC    &bl BL_INC      &trans          &trans           &trans   &trans    &trans  &trans
+&BOT       &trans  &trans          &trans          &mo 2            &mo 6            &trans      &trans       &trans        &BOT
+            >;
 
-};
+            sensor-bindings = <&BLE_encoder &inc_dec_kp UP DOWN>;
+        };
 
-keymap {
+        Arrow {
+            display-name = "Arrow";
+            bindings = <
+&none  &none  &none           &none           &none            &none  &none  &none  &none         &none           &none           &none            &none  &none
+&none  &none  &none           &kp UP_ARROW    &none            &none  &none  &none  &kp UP_ARROW  &none           &none           &none
+&none  &none  &kp LEFT_ARROW  &kp DOWN_ARROW  &kp RIGHT_ARROW  &none  &none  &none  &none         &kp LEFT_ARROW  &kp DOWN_ARROW  &kp RIGHT_ARROW  &none  &none
+&none  &none  &none           &none           &none            &none  &none  &none  &none         &none           &none           &none            &none  &none  &none  &none
+&none  &none  &none           &none           &none            &none  &none  &none  &none         &none
+            >;
+        };
 
-compatible = "zmk,keymap";
+        calculator {
+            bindings = <
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &kp KP_NUMLOCK   &trans           &kp KP_NUMBER_7  &kp KP_NUMBER_8  &kp KP_NUMBER_9  &kp KP_MINUS     &trans
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &kp KP_NUMBER_4  &kp KP_NUMBER_5  &kp KP_NUMBER_6  &kp KP_PLUS      &trans
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans           &trans           &kp KP_NUMBER_1  &kp KP_NUMBER_2  &kp KP_NUMBER_3  &kp KP_MULTIPLY  &trans
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans           &trans           &trans           &trans           &kp KP_NUMBER_0  &kp KP_DOT       &kp EQUAL  &kp KP_DIVIDE  &trans
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans           &trans           &trans
+            >;
+        };
 
-default_layer {
-display-name = "QWERTY";
+        Spe {
+            bindings = <
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans            &trans             &kp MINUS      &kp EQUAL
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &kp LEFT_BRACKET  &kp RIGHT_BRACKET
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans            &trans             &kp SEMICOLON  &kp SQT
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans            &trans             &trans         &trans     &kp BACKSLASH  &trans
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans
+            >;
+        };
 
-bindings = <
-&kp ESC &kp N1 &kp N2 &kp N3 &kp N4 &kp N5 &kp C_MUTE &kp F5 &kp N6 &kp N7 &kp N8 &kp N9 &kp N0 &kp DEL
-&kp TAB &kp Q &kp W &kp E &kp R &kp T &kp Y &kp U &kp I &kp O &kp P &kp BACKSPACE
-&mt LCTRL RALT &lt 2 A &kp S &kp D &kp F &kp G &mkp LCLK &mkp LCLK &kp H &kp J &kp K &kp L &mo 2 &kp ENTER
-&kp LSHFT &kp Z &kp X &kp C &kp V &kp B &kp LC(EQUAL) &kp LC(KP_MINUS) &msc SCRL_LEFT &msc SCRL_RIGHT &kp N &kp M &kp COMMA &kp DOT &kp SLASH &kp RIGHT_SHIFT
-&kp LWIN &kp LEFT_CONTROL &kp LALT &kp SPACE &mo 1 &mkp MB1 &kp SPACE &mo 3 &mo 4 &mo 5
->;
+        SPE_Shift {
+            bindings = <
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans                &trans                 &kp LS(MINUS)      &kp LS(EQUAL)
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &kp LS(LEFT_BRACKET)  &kp LS(RIGHT_BRACKET)
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans                &trans                 &kp LS(SEMICOLON)  &kp LS(SQT)
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans                &trans                 &trans             &trans         &kp LS(BACKSLASH)  &trans
+&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans
+            >;
+        };
 
-sensor-bindings =
-<&inc_dec_kp C_VOLUME_UP C_VOLUME_DOWN>,
-<&inc_dec_kp PG_UP PG_DN>;
-
-};
-
-func_layer {
-display-name = "FUNC";
-
-bindings = <
-&kp GRAVE &kp F1 &kp F2 &kp F3 &kp F4 &kp F5 &bt BT_CLR &bootloader &kp F6 &kp F7 &kp F8 &kp F9 &kp F10 &kp BSPC
-&trans &trans &trans &kp UP_ARROW &trans &trans &kp F11 &kp F12 &kp UP_ARROW &trans &trans &kp ENTER
-&trans &trans &kp LEFT_ARROW &kp DOWN_ARROW &kp RIGHT_ARROW &trans &mkp RCLK &mkp RCLK &trans &kp LEFT_ARROW &kp DOWN_ARROW &kp RIGHT_ARROW &trans &kp SQT
-&trans &trans &trans &trans &trans &rgb_ug RGB_TOG &trans &trans &bl BL_DEC &bl BL_INC &trans &trans &trans &trans &trans &trans
-&BOT &trans &trans &trans &mo 2 &mo 6 &trans &trans &trans &BOT
->;
-
-sensor-bindings = <&BLE_encoder &inc_dec_kp UP DOWN>;
-
-};
-
-Arrow {
-display-name = "Arrow";
-
-bindings = <
-&none &none &none &none &none &none &none &none &none &none &none &none &none &none
-&none &none &none &kp UP_ARROW &none &none &none &none &kp UP_ARROW &none &none &none
-&none &none &kp LEFT_ARROW &kp DOWN_ARROW &kp RIGHT_ARROW &none &none &none &none &kp LEFT_ARROW &kp DOWN_ARROW &kp RIGHT_ARROW &none &none
-&none &none &none &none &none &none &none &none &none &none &none &none &none &none &none &none
-&none &none &none &none &none &none &none &none &none &none
->;
-
-};
-
-calculator {
-
-bindings = <
-&trans &trans &trans &trans &trans &trans &trans &kp KP_NUMLOCK &trans &kp KP_NUMBER_7 &kp KP_NUMBER_8 &kp KP_NUMBER_9 &kp KP_MINUS &trans
-&trans &trans &trans &trans &trans &trans &trans &kp KP_NUMBER_4 &kp KP_NUMBER_5 &kp KP_NUMBER_6 &kp KP_PLUS &trans
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &kp KP_NUMBER_1 &kp KP_NUMBER_2 &kp KP_NUMBER_3 &kp KP_MULTIPLY &trans
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &kp KP_NUMBER_0 &kp KP_DOT &kp EQUAL &kp KP_DIVIDE &trans
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans
->;
-
-};
-
-Spe {
-
-bindings = <
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &kp MINUS &kp EQUAL
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &kp LEFT_BRACKET &kp RIGHT_BRACKET
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &kp SEMICOLON &kp SQT
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &kp BACKSLASH &trans
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans
->;
-
-};
-
-SPE_Shift {
-
-bindings = <
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &kp LS(MINUS) &kp LS(EQUAL)
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &kp LS(LEFT_BRACKET) &kp LS(RIGHT_BRACKET)
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &kp LS(SEMICOLON) &kp LS(SQT)
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &kp LS(BACKSLASH) &trans
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans
->;
-
-};
-
-KB_Control {
-
-bindings = <
-&bt BT_CLR &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2 &bt BT_SEL 3 &trans &trans &bt BT_CLR_ALL &trans &trans &trans &trans &trans &trans
-&trans &trans &trans &trans &trans &out OUT_TOG &trans &trans &trans &trans &trans &trans
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans &trans
-&trans &trans &trans &trans &trans &trans &trans &trans &bl BL_ON &bl BL_OFF &trans &trans &trans &trans &trans &trans
-&trans &trans &trans &trans &trans &trans &trans &trans &trans &trans
->;
-
-};
-
-};
-
+        KB_Control {
+            bindings = <
+&bt BT_CLR  &bt BT_SEL 0  &bt BT_SEL 1  &bt BT_SEL 2  &bt BT_SEL 3  &trans        &trans  &bt BT_CLR_ALL  &trans     &trans      &trans  &trans  &trans  &trans
+&trans      &trans        &trans        &trans        &trans        &out OUT_TOG  &trans  &trans          &trans     &trans      &trans  &trans
+&trans      &trans        &trans        &trans        &trans        &trans        &trans  &trans          &trans     &trans      &trans  &trans  &trans  &trans
+&trans      &trans        &trans        &trans        &trans        &trans        &trans  &trans          &bl BL_ON  &bl BL_OFF  &trans  &trans  &trans  &trans  &trans  &trans
+&trans      &trans        &trans        &trans        &trans        &trans        &trans  &trans          &trans     &trans
+            >;
+        };
+    };
 };
