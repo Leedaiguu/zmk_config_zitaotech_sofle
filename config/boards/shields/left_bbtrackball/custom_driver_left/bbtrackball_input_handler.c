@@ -164,14 +164,14 @@ static void report_work_handler(struct k_work *work) {
         moved = true;
 
         /* Space held → 禁止鼠标移动（只允许 scroll / arrow） */
-        if (!space_pressed) {
+      /*  if (!space_pressed) ddddddddddddddddddd{ */
             int dx = -dx_acc;
             int dy = -dy_acc;
             input_report_rel(dev, INPUT_REL_X, dx, false, K_FOREVER);
             input_report_rel(dev, INPUT_REL_Y, dy, true, K_FOREVER);
             dx_acc = 0;
             dy_acc = 0;
-        }
+      /*   }      dddddddddddddddddddddddd */
     } else {
         moved = false;
     }
@@ -201,8 +201,8 @@ static int bbtrackball_init(const struct device *dev) {
     k_work_init_delayable(&data->report_work, report_work_handler);
     k_work_schedule(&data->report_work, K_MSEC(REPORT_INTERVAL_MS));
 
-    k_work_init_delayable(&data->arrow_repeat_work, arrow_repeat_work_handler);
-    k_work_schedule(&data->arrow_repeat_work, K_MSEC(SCROLL_DELAY_MS));
+   /* k_work_init_delayable(&data->arrow_repeat_work, arrow_repeat_work_handler);
+    k_work_schedule(&data->arrow_repeat_work, K_MSEC(SCROLL_DELAY_MS));    ddddddddddddddd*/
 
     return 0;
 }
