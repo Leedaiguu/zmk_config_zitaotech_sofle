@@ -195,10 +195,10 @@ static void trackpoint_poll_work(struct k_work *work)
                     dy = dy * accel;
                 }
 
-                /* ZMK HID movement */
+                /* HID mouse movement */
 
-                zmk_hid_mouse_movement_update(-dx, -dy);
-                zmk_hid_mouse_movement_send();
+                zmk_hid_mouse_movement_set(-dx, -dy);
+                zmk_hid_mouse_report();
             }
         }
 
