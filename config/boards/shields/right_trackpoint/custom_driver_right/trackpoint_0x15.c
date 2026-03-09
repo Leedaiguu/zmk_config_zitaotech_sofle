@@ -47,7 +47,7 @@ static int space_listener_cb(const zmk_event_t *eh) {
         return 0;
     }
 
-    if (ev->position == 61) { // Space position code
+    if (ev->position == 61) {
         space_pressed = ev->state;
         LOG_INF("space position=61 %s", space_pressed ? "PRESSED" : "RELEASED");
     }
@@ -73,36 +73,44 @@ struct trackpoint_data {
 static int trackpoint_read_packet(const struct device *dev, int8_t *dx, int8_t *dy) {
     const struct trackpoint_config *cfg = dev->config;
     uint8_t buf[TRACKPOINT_PACKET_LEN] = {0};
+
     int ret = i2c_read_dt(&cfg->i2c, buf, TRACKPOINT_PACKET_LEN);
     if (ret < 0) {
         LOG_ERR("I2C read failed: %d", ret);
         return ret;
     }
+
     if (buf[0] != TRACKPOINT_MAGIC_BYTE0) {
         LOG_WRN("Invalid packet header: 0x%02X", buf[0]);
         return -EIO;
     }
+
     *dx = (int8_t)buf[2];
     *dy = (int8_t)buf[3];
+
     return 0;
 }
 
 /* ========= Polling 任务 ========= */
 static void trackpoint_poll_work(struct k_work *work) {
+
     struct k_work_delayable *dwork = CONTAINER_OF(work, struct k_work_delayable, work);
     struct trackpoint_data *data = CONTAINER_OF(dwork, struct trackpoint_data, poll_work);
     const struct device *dev = data->dev;
-    uint32_t now = k_uptime_get_32();
 
+    uint32_t now = k_uptime_get_32();
     int pin_state = gpio_pin_get(motion_gpio_dev, MOTION_GPIO_PIN);
 
     if (pin_state == 0) {
-        /* INTPIN 拉低，读取数据包 */
+
         int8_t dx = 0, dy = 0;
+
         if (trackpoint_read_packet(dev, &dx, &dy) == 0) {
+
             if (space_pressed) {
-                /* Space 按住时作为滚轮 */
+
                 int16_t scroll_x = 0, scroll_y = 0;
+
                 if (abs(dy) >= 128) {
                     scroll_x = -dx / 24;
                     scroll_y = -dy / 24;
@@ -122,38 +130,75 @@ static void trackpoint_poll_work(struct k_work *work) {
                     scroll_x = (dx > 0) ? -1 : (dx < 0) ? 1 : 0;
                     scroll_y = 0;
                 }
+
                 input_report_rel(dev, INPUT_REL_HWHEEL, scroll_x, false, K_FOREVER);
                 input_report_rel(dev, INPUT_REL_WHEEL, -scroll_y, true, K_FOREVER);
+
                 k_sleep(K_MSEC(40));
+
             } else {
-                /* 正常鼠标移动 */
+
+                /* ThinkPad-style acceleration curve */
+
                 uint8_t tp_led_brt = custom_led_get_last_valid_brightness();
-                float tp_factor = 0.4f + 0.01f * tp_led_brt;
-                dx = dx * 3 / 2 * tp_factor;
-                dy = dy * 3 / 2 * tp_factor;
+
+                int ax = abs(dx);
+                int ay = abs(dy);
+                int mag = MAX(ax, ay);
+
+                if (mag <= 1) {
+                    dx = 0;
+                    dy = 0;
+                } else {
+
+                    float accel;
+
+                    if (mag <= 3) {
+                        accel = 0.8f;
+                    } else if (mag <= 6) {
+                        accel = 1.4f;
+                    } else if (mag <= 12) {
+                        accel = 2.2f;
+                    } else if (mag <= 24) {
+                        accel = 3.5f;
+                    } else {
+                        accel = 5.0f;
+                    }
+
+                    accel += tp_led_brt * 0.01f;
+
+                    dx = dx * accel;
+                    dy = dy * accel;
+                }
+
                 input_report_rel(dev, INPUT_REL_X, -dx, false, K_FOREVER);
                 input_report_rel(dev, INPUT_REL_Y, -dy, true, K_FOREVER);
             }
         }
+
         last_packet_time = now;
     }
 
-    k_work_schedule(&data->poll_work, K_MSEC(5));
+    k_work_schedule(&data->poll_work, K_MSEC(3));
 }
 
 /* ========= 初始化函数 ========= */
 static int trackpoint_init(const struct device *dev) {
+
     const struct trackpoint_config *cfg = dev->config;
     struct trackpoint_data *data = dev->data;
 
     LOG_DBG("Initializing TrackPoint I2C @0x%02x", cfg->i2c.addr);
+
     k_sleep(K_MSEC(10));
+
     if (!device_is_ready(cfg->i2c.bus)) {
         LOG_ERR("I2C bus not ready");
         return -ENODEV;
     }
 
     motion_gpio_dev = DEVICE_DT_GET(MOTION_GPIO_NODE);
+
     if (!device_is_ready(motion_gpio_dev)) {
         LOG_ERR("Motion GPIO device not ready");
         return -ENODEV;
@@ -165,13 +210,15 @@ static int trackpoint_init(const struct device *dev) {
     trackpoint_dev_ref = dev;
 
     k_work_init_delayable(&data->poll_work, trackpoint_poll_work);
-    k_work_schedule(&data->poll_work, K_MSEC(5));
+    k_work_schedule(&data->poll_work, K_MSEC(3));
 
     LOG_DBG("TrackPoint initialized successfully");
+
     return 0;
 }
 
 /* ========= 设备注册 ========= */
+
 #define TRACKPOINT_INIT_PRIORITY CONFIG_INPUT_INIT_PRIORITY
 
 #define TRACKPOINT_DEFINE(inst)                                                                    \
