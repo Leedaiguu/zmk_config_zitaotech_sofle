@@ -12,6 +12,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/input/input.h>
 #include <math.h>
+#include <stdbool.h>
 
 LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 
@@ -161,3 +162,11 @@ static int bbtrackball_init(const struct device *dev) {
                           NULL);
 
 DT_INST_FOREACH_STATUS_OKAY(BBTRACKBALL_DEFINE);
+
+/* =====================================================================
+ * LED driver uses this to detect movement
+ * ===================================================================== */
+bool trackball_is_moving(void)
+{
+    return (dx_acc != 0) || (dy_acc != 0);
+}
