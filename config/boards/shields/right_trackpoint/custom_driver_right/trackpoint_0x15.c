@@ -83,6 +83,32 @@ static int trackpoint_read_packet(
     return 0;
 }
 
+/* ========= acceleration function ========= */
+
+static inline float trackpoint_acceleration(int mag, uint8_t led_brightness)
+{
+    float accel;
+
+    /* deadzone handled before calling */
+
+    if (mag <= 2) {
+        accel = 0.5f;
+    } else {
+        accel = 0.5f + (mag * 0.18f);
+    }
+
+    if (accel > 5.0f)
+        accel = 5.0f;
+
+    /* LED brightness sensitivity adjustment */
+    accel += led_brightness * 0.01f;
+
+    if (accel > 6.0f)
+        accel = 6.0f;
+
+    return accel;
+}
+
 /* ========= poll ========= */
 
 static void trackpoint_poll_work(struct k_work *work)
@@ -106,8 +132,6 @@ static void trackpoint_poll_work(struct k_work *work)
 
         if (trackpoint_read_packet(dev, &dx, &dy) == 0) {
 
-            /* ===== pointer acceleration ===== */
-
             uint8_t tp_led_brt =
                 custom_led_get_last_valid_brightness();
 
@@ -115,25 +139,18 @@ static void trackpoint_poll_work(struct k_work *work)
             int ay = abs(dy);
             int mag = MAX(ax, ay);
 
-            if (mag <= 1) {
+            /* ===== deadzone filtering ===== */
 
+            if (mag <= 1) {
                 dx = 0;
                 dy = 0;
-
             } else {
 
-                float accel;
+                float accel =
+                    trackpoint_acceleration(mag, tp_led_brt);
 
-                if (mag <= 3) accel = 0.8f;
-                else if (mag <= 6) accel = 1.4f;
-                else if (mag <= 12) accel = 2.2f;
-                else if (mag <= 24) accel = 3.5f;
-                else accel = 5.0f;
-
-                accel += tp_led_brt * 0.01f;
-
-                dx = dx * accel;
-                dy = dy * accel;
+                dx = (int)((float)dx * accel);
+                dy = (int)((float)dy * accel);
             }
 
             /* ===== pointer movement ===== */
