@@ -18,6 +18,20 @@
 #define BOT bootloader
 
 / {
+
+    behaviors {
+        drag_mb1: drag_mb1 {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <
+                &macro_press
+                &mkp MB1
+                &macro_release
+                &mkp MB1
+            >;
+        };
+    };
+
     behaviors {
         td0: tap_dance_0 {
             compatible = "zmk,behavior-tap-dance";
@@ -43,9 +57,9 @@
         sp_sc: behavior_spacescroll {
             compatible = "zmk,behavior-hold-tap";
             #binding-cells = <2>;
-            flavor = "tap-preferred";     /* 单击优先 */
-            tapping-term-ms = <200>;       /* 长按阈值 */
-            bindings = <&none &kp>;        /* hold=none, tap=space */
+            flavor = "tap-preferred";
+            tapping-term-ms = <200>;
+            bindings = <&none &kp>;
         };
     };
 
@@ -132,7 +146,7 @@
 &kp TAB         &kp Q             &kp W     &kp E      &kp R   &kp T     &kp Y          &kp U             &kp I           &kp O            &kp P   &kp BACKSPACE
 &mt LCTRL RALT  &lt 2 A           &kp S     &kp D      &kp F   &kp G     &mkp LCLK      &mkp LCLK         &kp H           &kp J            &kp K   &kp L          &mo 2      &kp ENTER
 &kp LSHFT       &kp Z             &kp X     &kp C      &kp V   &kp B     &kp LC(EQUAL)  &kp LC(KP_MINUS)  &msc SCRL_LEFT  &msc SCRL_RIGHT  &kp N   &kp M          &kp COMMA  &kp DOT    &kp SLASH  &kp RIGHT_SHIFT
-&kp LWIN        &kp LEFT_CONTROL  &kp LALT  &kp SPACE  &mo 1   &mkp MB1  &kp SPACE      &mo 3             &mo 4           &mo 5
+&kp LWIN        &kp LEFT_CONTROL  &kp LALT  &kp SPACE  &mo 1   &drag_mb1  &kp SPACE      &mo 3             &mo 4           &mo 5
             >;
 
             sensor-bindings =
@@ -153,55 +167,5 @@
             sensor-bindings = <&BLE_encoder &inc_dec_kp UP DOWN>;
         };
 
-        Arrow {
-            display-name = "RESERVE";
-            bindings = <
-&none  &none  &none           &none           &none            &none  &none  &none  &none         &none           &none           &none            &none  &none
-&none  &none  &none           &kp UP_ARROW    &none            &none  &none  &none  &kp UP_ARROW  &none           &none           &none
-&none  &none  &kp LEFT_ARROW  &kp DOWN_ARROW  &kp RIGHT_ARROW  &none  &none  &none  &none         &kp LEFT_ARROW  &kp DOWN_ARROW  &kp RIGHT_ARROW  &none  &none
-&none  &none  &none           &none           &none            &none  &none  &none  &none         &none           &none           &none            &none  &none  &none  &none
-&none  &none  &none           &none           &none            &none  &none  &none  &none         &none
-            >;
-        };
-
-        calculator {
-            bindings = <
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &kp KP_NUMLOCK   &trans           &kp KP_NUMBER_7  &kp KP_NUMBER_8  &kp KP_NUMBER_9  &kp KP_MINUS     &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &kp KP_NUMBER_4  &kp KP_NUMBER_5  &kp KP_NUMBER_6  &kp KP_PLUS      &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans           &trans           &kp KP_NUMBER_1  &kp KP_NUMBER_2  &kp KP_NUMBER_3  &kp KP_MULTIPLY  &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans           &trans           &trans           &trans           &kp KP_NUMBER_0  &kp KP_DOT       &kp EQUAL  &kp KP_DIVIDE  &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans           &trans           &trans
-            >;
-        };
-
-        Spe {
-            bindings = <
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans            &trans             &kp MINUS      &kp EQUAL
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &kp LEFT_BRACKET  &kp RIGHT_BRACKET
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans            &trans             &kp SEMICOLON  &kp SQT
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans            &trans             &trans         &trans     &kp BACKSLASH  &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans
-            >;
-        };
-
-        SPE_Shift {
-            bindings = <
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans                &trans                 &kp LS(MINUS)      &kp LS(EQUAL)
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &kp LS(LEFT_BRACKET)  &kp LS(RIGHT_BRACKET)
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans                &trans                 &kp LS(SEMICOLON)  &kp LS(SQT)
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans                &trans                 &trans             &trans         &kp LS(BACKSLASH)  &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans
-            >;
-        };
-
-        KB_Control {
-            bindings = <
-&bt BT_CLR  &bt BT_SEL 0  &bt BT_SEL 1  &bt BT_SEL 2  &bt BT_SEL 3  &trans        &trans  &bt BT_CLR_ALL  &trans     &trans      &trans  &trans  &trans  &trans
-&trans      &trans        &trans        &trans        &trans        &out OUT_TOG  &trans  &trans          &trans     &trans      &trans  &trans
-&trans      &trans        &trans        &trans        &trans        &trans        &trans  &trans          &trans     &trans      &trans  &trans  &trans  &trans
-&trans      &trans        &trans        &trans        &trans        &trans        &trans  &trans          &bl BL_ON  &bl BL_OFF  &trans  &trans  &trans  &trans  &trans  &trans
-&trans      &trans        &trans        &trans        &trans        &trans        &trans  &trans          &trans     &trans
-            >;
-        };
     };
 };
