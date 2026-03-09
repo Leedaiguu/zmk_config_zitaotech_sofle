@@ -1,5 +1,5 @@
 /*
- * TrackPoint HID over I2C Driver (Zephyr Input Subsystem)
+ * TrackPoint HID over I2C Driver (Pointer Only)
  * Copyright (c) 2025 ZitaoTech
  * SPDX-License-Identifier: MIT
  */
@@ -36,35 +36,9 @@ static const struct device *motion_gpio_dev;
 #define TRACKPOINT_PACKET_LEN 7
 #define TRACKPOINT_MAGIC_BYTE0 0x50
 
-/* ========= key position ========= */
-
-#define SPACE_POSITION 61
-
 /* ========= global state ========= */
 
-static bool space_pressed = false;
 uint32_t last_packet_time = 0;
-
-/* ========= key listener ========= */
-
-static int space_listener_cb(const zmk_event_t *eh)
-{
-    const struct zmk_position_state_changed *ev =
-        as_zmk_position_state_changed(eh);
-
-    if (!ev) {
-        return 0;
-    }
-
-    if (ev->position == SPACE_POSITION) {
-        space_pressed = ev->state;
-    }
-
-    return 0;
-}
-
-ZMK_LISTENER(trackpoint_space_listener, space_listener_cb);
-ZMK_SUBSCRIPTION(trackpoint_space_listener, zmk_position_state_changed);
 
 /* ========= config ========= */
 
@@ -132,82 +106,49 @@ static void trackpoint_poll_work(struct k_work *work)
 
         if (trackpoint_read_packet(dev, &dx, &dy) == 0) {
 
-            /* ========= scroll mode ========= */
+            /* ===== pointer acceleration ===== */
 
-            if (space_pressed) {
+            uint8_t tp_led_brt =
+                custom_led_get_last_valid_brightness();
 
-                int16_t scroll_x = 0;
-                int16_t scroll_y = 0;
+            int ax = abs(dx);
+            int ay = abs(dy);
+            int mag = MAX(ax, ay);
 
-                if (abs(dy) >= 32) {
-                    scroll_x = -dx / 12;
-                    scroll_y = -dy / 12;
-                } else if (abs(dy) >= 8) {
-                    scroll_x = -dx / 8;
-                    scroll_y = -dy / 8;
-                } else {
-                    scroll_x = (dx > 0) ? -1 : (dx < 0) ? 1 : 0;
-                    scroll_y = (dy > 0) ? -1 : (dy < 0) ? 1 : 0;
-                }
+            if (mag <= 1) {
 
-                input_report_rel(dev,
-                                 INPUT_REL_HWHEEL,
-                                 scroll_x,
-                                 false,
-                                 K_FOREVER);
-
-                input_report_rel(dev,
-                                 INPUT_REL_WHEEL,
-                                 -scroll_y,
-                                 true,
-                                 K_FOREVER);
+                dx = 0;
+                dy = 0;
 
             } else {
 
-                /* ========= pointer mode ========= */
+                float accel;
 
-                uint8_t tp_led_brt =
-                    custom_led_get_last_valid_brightness();
+                if (mag <= 3) accel = 0.8f;
+                else if (mag <= 6) accel = 1.4f;
+                else if (mag <= 12) accel = 2.2f;
+                else if (mag <= 24) accel = 3.5f;
+                else accel = 5.0f;
 
-                int ax = abs(dx);
-                int ay = abs(dy);
-                int mag = MAX(ax, ay);
+                accel += tp_led_brt * 0.01f;
 
-                if (mag <= 1) {
-
-                    dx = 0;
-                    dy = 0;
-
-                } else {
-
-                    float accel;
-
-                    if (mag <= 3) accel = 0.8f;
-                    else if (mag <= 6) accel = 1.4f;
-                    else if (mag <= 12) accel = 2.2f;
-                    else if (mag <= 24) accel = 3.5f;
-                    else accel = 5.0f;
-
-                    accel += tp_led_brt * 0.01f;
-
-                    dx = dx * accel;
-                    dy = dy * accel;
-                }
-
-                /* pointer movement */
-
-                input_report_rel(dev,
-                                 INPUT_REL_X,
-                                 -dx,
-                                 false,
-                                 K_FOREVER);
-
-                input_report_rel(dev,
-                                 INPUT_REL_Y,
-                                 -dy,
-                                 true,
-                                 K_FOREVER);
+                dx = dx * accel;
+                dy = dy * accel;
             }
+
+            /* ===== pointer movement ===== */
+
+            input_report_rel(dev,
+                             INPUT_REL_X,
+                             -dx,
+                             false,
+                             K_FOREVER);
+
+            input_report_rel(dev,
+                             INPUT_REL_Y,
+                             -dy,
+                             true,
+                             K_FOREVER);
         }
 
         last_packet_time = now;
