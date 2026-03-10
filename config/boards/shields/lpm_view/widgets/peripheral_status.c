@@ -22,8 +22,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/wpm.h>
 
 #include "peripheral_status.h"
-
-/* ================= 이미지 ================= */
+#include "util.h"
 
 LV_IMG_DECLARE(spaceship1);
 LV_IMG_DECLARE(spaceship2);
@@ -34,15 +33,11 @@ LV_IMG_DECLARE(spaceship6);
 LV_IMG_DECLARE(spaceship7);
 LV_IMG_DECLARE(spaceship8);
 
-/* ================= 상태 ================= */
-
 static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 
 struct peripheral_status_state {
 bool connected;
 };
-
-/* ================= 애니메이션 상태 ================= */
 
 struct art_state {
 lv_obj_t *art;
@@ -61,8 +56,6 @@ int star2_y[4];
 
 };
 
-/* ================= 프레임 ================= */
-
 static const lv_img_dsc_t *frames[] = {
 &spaceship1,
 &spaceship2,
@@ -75,8 +68,6 @@ static const lv_img_dsc_t *frames[] = {
 };
 
 #define FRAME_COUNT (sizeof(frames) / sizeof(frames[0]))
-
-/* ================= 별 배경 ================= */
 
 static void draw_stars(struct art_state *s) {
 
@@ -98,8 +89,6 @@ for (int i = 0; i < 4; i++) {
 
 }
 
-/* ================= 顶部 ================= */
-
 static void draw_top(lv_obj_t *widget, lv_color_t cbuf[], const struct status_state *state) {
 
 ```
@@ -108,10 +97,10 @@ lv_obj_t *canvas = lv_obj_get_child(widget, 0);
 lv_draw_label_dsc_t label_dsc;
 init_label_dsc(&label_dsc, LVGL_FOREGROUND, &lv_font_montserrat_16, LV_TEXT_ALIGN_RIGHT);
 
-lv_draw_rect_dsc_t rect;
-init_rect_dsc(&rect, LVGL_BACKGROUND);
+lv_draw_rect_dsc_t rect_black_dsc;
+init_rect_dsc(&rect_black_dsc, LVGL_BACKGROUND);
 
-lv_canvas_draw_rect(canvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE, &rect);
+lv_canvas_draw_rect(canvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE, &rect_black_dsc);
 
 draw_battery(canvas, state);
 
@@ -122,8 +111,6 @@ rotate_canvas(canvas, cbuf);
 ```
 
 }
-
-/* ================= 电池 ================= */
 
 static void set_battery_status(struct zmk_widget_status *widget,
 struct battery_status_state state) {
@@ -174,8 +161,6 @@ ZMK_SUBSCRIPTION(widget_battery_status, zmk_battery_state_changed);
 ZMK_SUBSCRIPTION(widget_battery_status, zmk_usb_conn_state_changed);
 #endif
 
-/* ================= 连接状态 ================= */
-
 static struct peripheral_status_state get_state(const zmk_event_t *eh) {
 
 ```
@@ -216,8 +201,6 @@ get_state)
 
 ZMK_SUBSCRIPTION(widget_peripheral_status, zmk_split_peripheral_status_changed)
 
-/* ================= 애니메이션 ================= */
-
 static void art_anim_timer_cb(lv_timer_t *timer) {
 
 ```
@@ -227,30 +210,30 @@ uint8_t wpm = zmk_wpm_get_state();
 
 int step = 1;
 
-if (wpm > 80) step = 4;
-else if (wpm > 40) step = 3;
-else if (wpm > 10) step = 2;
-
-/* 엔진 프레임 */
+if (wpm > 80)
+    step = 4;
+else if (wpm > 40)
+    step = 3;
+else if (wpm > 10)
+    step = 2;
 
 if (wpm > 0) {
     s->frame_index = (s->frame_index + step) % FRAME_COUNT;
     lv_img_set_src(s->art, frames[s->frame_index]);
 }
 
-/* 우주선 이동 */
-
 if (wpm > 0)
     s->x_pos += step;
 else
     s->x_pos -= 1;
 
-if (s->x_pos > 80) s->x_pos = 80;
-if (s->x_pos < 0) s->x_pos = 0;
+if (s->x_pos > 80)
+    s->x_pos = 80;
+
+if (s->x_pos < 0)
+    s->x_pos = 0;
 
 lv_obj_set_pos(s->art, s->x_pos, 0);
-
-/* Parallax stars */
 
 for (int i = 0; i < 8; i++) {
 
@@ -277,10 +260,7 @@ draw_stars(s);
 
 }
 
-/* ================= 初始化 ================= */
-
-int zmk_widget_status_init(struct zmk_widget_status *widget,
-lv_obj_t *parent) {
+int zmk_widget_status_init(struct zmk_widget_status *widget, lv_obj_t *parent) {
 
 ```
 widget->obj = lv_obj_create(parent);
@@ -308,8 +288,6 @@ lv_img_set_src(s.art, frames[0]);
 
 lv_obj_set_pos(s.art, 0, 0);
 
-/* 별 초기화 */
-
 for (int i = 0; i < 8; i++) {
     s.star1_x[i] = sys_rand32_get() % 120;
     s.star1_y[i] = sys_rand32_get() % 64;
@@ -335,5 +313,9 @@ return 0;
 }
 
 lv_obj_t *zmk_widget_status_obj(struct zmk_widget_status *widget) {
+
+```
 return widget->obj;
+```
+
 }
