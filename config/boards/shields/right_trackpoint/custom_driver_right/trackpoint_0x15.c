@@ -83,28 +83,32 @@ static int trackpoint_read_packet(
     return 0;
 }
 
-/* ========= acceleration function ========= */
+/* ========= acceleration ========= */
 
 static inline float trackpoint_acceleration(int mag, uint8_t led_brightness)
 {
     float accel;
 
-    /* deadzone handled before calling */
-
     if (mag <= 2) {
-        accel = 0.5f;
-    } else {
-        accel = 0.5f + (mag * 0.18f);
+        accel = 0.28f;        /* ultra precision */
     }
+    else if (mag <= 5) {
+        accel = 0.55f;        /* precision click zone */
+    }
+    else if (mag <= 12) {
+        accel = 1.6f;         /* normal movement */
+    }
+    else if (mag <= 24) {
+        accel = 3.0f;         /* fast movement */
+    }
+    else {
+        accel = 4.5f;         /* very fast movement */
+    }
+
+    accel += led_brightness * 0.005f;
 
     if (accel > 5.0f)
         accel = 5.0f;
-
-    /* LED brightness sensitivity adjustment */
-    accel += led_brightness * 0.01f;
-
-    if (accel > 6.0f)
-        accel = 6.0f;
 
     return accel;
 }
@@ -139,9 +143,9 @@ static void trackpoint_poll_work(struct k_work *work)
             int ay = abs(dy);
             int mag = MAX(ax, ay);
 
-            /* ===== deadzone filtering ===== */
+            /* ===== deadzone ===== */
 
-            if (mag <= 1) {
+            if (mag <= 2) {
                 dx = 0;
                 dy = 0;
             } else {
