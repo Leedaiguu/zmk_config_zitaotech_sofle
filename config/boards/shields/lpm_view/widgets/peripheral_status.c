@@ -21,7 +21,6 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/wpm.h>
 
 #include "peripheral_status.h"
-#include "util.h"
 
 LV_IMG_DECLARE(spaceship1);
 LV_IMG_DECLARE(spaceship2);
