@@ -22,14 +22,14 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include "peripheral_status.h"
 
 // ==================== 动画帧声明 ====================
-LV_IMG_DECLARE(bunnygirl1);
-LV_IMG_DECLARE(bunnygirl3);
-LV_IMG_DECLARE(bunnygirl6);
-LV_IMG_DECLARE(bunnygirl9);
-LV_IMG_DECLARE(bunnygirl12);
-LV_IMG_DECLARE(bunnygirl15);
-LV_IMG_DECLARE(bunnygirl18);
-LV_IMG_DECLARE(bunnygirl21);
+LV_IMG_DECLARE(spaceship1);
+LV_IMG_DECLARE(spaceship2);
+LV_IMG_DECLARE(spaceship3);
+LV_IMG_DECLARE(spaceship4);
+LV_IMG_DECLARE(spaceship5);
+LV_IMG_DECLARE(spaceship6);
+LV_IMG_DECLARE(spaceship7);
+LV_IMG_DECLARE(spaceship8);
 
 LV_IMG_DECLARE(landspace1);
 
@@ -54,8 +54,8 @@ struct art_state {
 */
 
 static const lv_img_dsc_t *bunny_frames[] = {
-    &bunnygirl1,  &bunnygirl3,  &bunnygirl6,  &bunnygirl9,
-    &bunnygirl12, &bunnygirl15, &bunnygirl18, &bunnygirl21,
+    &spaceship1,  &spaceship2,  &spaceship3,  &spaceship4,
+    &spaceship5, &spaceship6, &spaceship7, &spaceship8,
 };
 
 #define BUNNY_FRAME_COUNT (sizeof(bunny_frames) / sizeof(bunny_frames[0]))
