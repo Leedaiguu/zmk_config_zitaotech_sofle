@@ -1,6 +1,6 @@
 /*
  * TrackPoint HID over I2C Driver (Pointer Only)
- * Precision tuned version
+ * Precision tuned version (sub-pixel optimized)
  */
 
 #define DT_DRV_COMPAT zmk_trackpoint
@@ -39,11 +39,9 @@ static const struct device *motion_gpio_dev;
 
 uint32_t last_packet_time = 0;
 
-/* fractional movement accumulator */
 static float frac_x = 0.0f;
 static float frac_y = 0.0f;
 
-/* velocity smoothing */
 static float smooth_dx = 0.0f;
 static float smooth_dy = 0.0f;
 
@@ -97,19 +95,19 @@ static inline float trackpoint_acceleration(int mag)
     float accel;
 
     if (mag <= 2) {
-        accel = 0.45f;   /* micro precision */
+        accel = 0.70f;
     }
     else if (mag <= 5) {
-        accel = 0.95f;   /* precision */
+        accel = 1.15f;
     }
     else if (mag <= 12) {
-        accel = 1.80f;   /* normal */
+        accel = 1.80f;
     }
     else if (mag <= 24) {
-        accel = 3.60f;   /* fast */
+        accel = 3.60f;
     }
     else {
-        accel = 5.00f;   /* very fast */
+        accel = 5.00f;
     }
 
     return accel;
@@ -142,8 +140,6 @@ static void trackpoint_poll_work(struct k_work *work)
             int ay = abs(dy);
             int mag = MAX(ax, ay);
 
-            /* deadzone removed */
-
             if (mag != 0) {
 
                 float accel = trackpoint_acceleration(mag);
@@ -151,15 +147,22 @@ static void trackpoint_poll_work(struct k_work *work)
                 float fx = (float)dx * accel;
                 float fy = (float)dy * accel;
 
-                /* velocity smoothing */
+                /* ===== sub-pixel boost ===== */
 
-                smooth_dx = smooth_dx * 0.65f + fx * 0.35f;
-                smooth_dy = smooth_dy * 0.65f + fy * 0.35f;
+                if (mag <= 2) {
+                    fx *= 1.35f;
+                    fy *= 1.35f;
+                }
+
+                /* ===== velocity smoothing (lighter) ===== */
+
+                smooth_dx = smooth_dx * 0.40f + fx * 0.60f;
+                smooth_dy = smooth_dy * 0.40f + fy * 0.60f;
 
                 fx = smooth_dx;
                 fy = smooth_dy;
 
-                /* fractional accumulation */
+                /* ===== fractional accumulation ===== */
 
                 fx += frac_x;
                 fy += frac_y;
