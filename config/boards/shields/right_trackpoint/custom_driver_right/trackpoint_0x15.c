@@ -1,8 +1,6 @@
 /*
  * TrackPoint HID over I2C Driver (Pointer Only)
- * Precision tuned for low-speed control (illustration work)
- * Copyright (c) 2025 ZitaoTech
- * SPDX-License-Identifier: MIT
+ * Precision tuned version
  */
 
 #define DT_DRV_COMPAT zmk_trackpoint
@@ -40,6 +38,14 @@ static const struct device *motion_gpio_dev;
 /* ========= global state ========= */
 
 uint32_t last_packet_time = 0;
+
+/* fractional movement accumulator */
+static float frac_x = 0.0f;
+static float frac_y = 0.0f;
+
+/* velocity smoothing */
+static float smooth_dx = 0.0f;
+static float smooth_dy = 0.0f;
 
 /* ========= config ========= */
 
@@ -86,32 +92,25 @@ static int trackpoint_read_packet(
 
 /* ========= acceleration ========= */
 
-static inline float trackpoint_acceleration(int mag, uint8_t led_brightness)
+static inline float trackpoint_acceleration(int mag)
 {
     float accel;
 
-    /* precision-oriented curve */
-
     if (mag <= 2) {
-        accel = 0.80f;     /* ultra precision */
+        accel = 0.45f;   /* micro precision */
     }
     else if (mag <= 5) {
-        accel = 1.20f;     /* precision movement */
+        accel = 0.95f;   /* precision */
     }
     else if (mag <= 12) {
-        accel = 1.80f;     /* normal movement */
+        accel = 1.80f;   /* normal */
     }
     else if (mag <= 24) {
-        accel = 3.00f;     /* fast movement */
+        accel = 3.60f;   /* fast */
     }
     else {
-        accel = 4.50f;     /* very fast */
+        accel = 5.00f;   /* very fast */
     }
-
-    accel += led_brightness * 0.005f;
-
-    if (accel > 5.0f)
-        accel = 5.0f;
 
     return accel;
 }
@@ -139,39 +138,41 @@ static void trackpoint_poll_work(struct k_work *work)
 
         if (trackpoint_read_packet(dev, &dx, &dy) == 0) {
 
-            uint8_t tp_led_brt =
-                custom_led_get_last_valid_brightness();
-
             int ax = abs(dx);
             int ay = abs(dy);
             int mag = MAX(ax, ay);
 
-            /* ===== deadzone (reduced for precision) ===== */
+            /* deadzone removed */
 
-            if (mag <= 1) {
-                dx = 0;
-                dy = 0;
-            } else {
+            if (mag != 0) {
 
-                float accel =
-                    trackpoint_acceleration(mag, tp_led_brt);
+                float accel = trackpoint_acceleration(mag);
 
                 float fx = (float)dx * accel;
                 float fy = (float)dy * accel;
 
-                dx = (int)fx;
-                dy = (int)fy;
+                /* velocity smoothing */
 
-                /* prevent ultra-small movement disappearing */
+                smooth_dx = smooth_dx * 0.65f + fx * 0.35f;
+                smooth_dy = smooth_dy * 0.65f + fy * 0.35f;
 
-                if (dx == 0 && fx != 0)
-                    dx = (fx > 0) ? 1 : -1;
+                fx = smooth_dx;
+                fy = smooth_dy;
 
-                if (dy == 0 && fy != 0)
-                    dy = (fy > 0) ? 1 : -1;
+                /* fractional accumulation */
+
+                fx += frac_x;
+                fy += frac_y;
+
+                int outx = (int)fx;
+                int outy = (int)fy;
+
+                frac_x = fx - outx;
+                frac_y = fy - outy;
+
+                dx = outx;
+                dy = outy;
             }
-
-            /* ===== pointer movement ===== */
 
             input_report_rel(dev,
                              INPUT_REL_X,
@@ -188,8 +189,6 @@ static void trackpoint_poll_work(struct k_work *work)
 
         last_packet_time = now;
     }
-
-    /* faster polling for smoother micro movement */
 
     k_work_schedule(&data->poll_work, K_MSEC(1));
 }
