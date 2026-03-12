@@ -1,5 +1,6 @@
 /*
  * TrackPoint HID over I2C Driver (Pointer Only)
+ * Precision tuned for low-speed control (illustration work)
  * Copyright (c) 2025 ZitaoTech
  * SPDX-License-Identifier: MIT
  */
@@ -89,20 +90,22 @@ static inline float trackpoint_acceleration(int mag, uint8_t led_brightness)
 {
     float accel;
 
+    /* precision-oriented curve */
+
     if (mag <= 2) {
-        accel = 0.28f;        /* ultra precision */
+        accel = 0.80f;     /* ultra precision */
     }
     else if (mag <= 5) {
-        accel = 0.55f;        /* precision click zone */
+        accel = 1.20f;     /* precision movement */
     }
     else if (mag <= 12) {
-        accel = 1.6f;         /* normal movement */
+        accel = 1.80f;     /* normal movement */
     }
     else if (mag <= 24) {
-        accel = 3.0f;         /* fast movement */
+        accel = 3.00f;     /* fast movement */
     }
     else {
-        accel = 4.5f;         /* very fast movement */
+        accel = 4.50f;     /* very fast */
     }
 
     accel += led_brightness * 0.005f;
@@ -143,9 +146,9 @@ static void trackpoint_poll_work(struct k_work *work)
             int ay = abs(dy);
             int mag = MAX(ax, ay);
 
-            /* ===== deadzone ===== */
+            /* ===== deadzone (reduced for precision) ===== */
 
-            if (mag <= 2) {
+            if (mag <= 1) {
                 dx = 0;
                 dy = 0;
             } else {
@@ -153,8 +156,19 @@ static void trackpoint_poll_work(struct k_work *work)
                 float accel =
                     trackpoint_acceleration(mag, tp_led_brt);
 
-                dx = (int)((float)dx * accel);
-                dy = (int)((float)dy * accel);
+                float fx = (float)dx * accel;
+                float fy = (float)dy * accel;
+
+                dx = (int)fx;
+                dy = (int)fy;
+
+                /* prevent ultra-small movement disappearing */
+
+                if (dx == 0 && fx != 0)
+                    dx = (fx > 0) ? 1 : -1;
+
+                if (dy == 0 && fy != 0)
+                    dy = (fy > 0) ? 1 : -1;
             }
 
             /* ===== pointer movement ===== */
@@ -175,7 +189,9 @@ static void trackpoint_poll_work(struct k_work *work)
         last_packet_time = now;
     }
 
-    k_work_schedule(&data->poll_work, K_MSEC(3));
+    /* faster polling for smoother micro movement */
+
+    k_work_schedule(&data->poll_work, K_MSEC(1));
 }
 
 /* ========= init ========= */
@@ -209,7 +225,7 @@ static int trackpoint_init(const struct device *dev)
                           trackpoint_poll_work);
 
     k_work_schedule(&data->poll_work,
-                    K_MSEC(3));
+                    K_MSEC(1));
 
     LOG_DBG("TrackPoint initialized");
 
