@@ -25,11 +25,15 @@ LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 #define GPIO0_DEV DT_NODELABEL(gpio0)
 #define GPIO1_DEV DT_NODELABEL(gpio1)
 
-/* ==== Config (Tuned) ==== */
+/* ==== Config ==== */
 #define BASE_MOVE_PIXELS 1
 #define EXPONENTIAL_BASE 1.08f
 #define SPEED_SCALE 40.0f
 #define REPORT_INTERVAL_MS 15
+
+/* delta clamp (critical fix) */
+#define DELTA_MIN_MS 1
+#define DELTA_MAX_MS 50
 
 static int dx_acc = 0;
 static int dy_acc = 0;
@@ -59,8 +63,12 @@ struct bbtrackball_data {
 };
 
 /* ==== GPIO interrupt handler ==== */
-static void dir_edge_cb(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
+static void dir_edge_cb(const struct device *dev,
+                        struct gpio_callback *cb,
+                        uint32_t pins)
+{
     for (size_t i = 0; i < ARRAY_SIZE(dir_inputs); i++) {
+
         DirInput *d = &dir_inputs[i];
 
         if ((dev == d->gpio_dev) && (pins & BIT(d->pin))) {
@@ -72,8 +80,15 @@ static void dir_edge_cb(const struct device *dev, struct gpio_callback *cb, uint
                 uint32_t now = k_uptime_get_32();
                 uint32_t delta = now - d->last_time;
 
-                if (delta == 0)
-                    delta = 1;
+                /* ===== delta clamp fix ===== */
+
+                if (delta < DELTA_MIN_MS)
+                    delta = DELTA_MIN_MS;
+
+                if (delta > DELTA_MAX_MS)
+                    delta = DELTA_MAX_MS;
+
+                /* =========================== */
 
                 float speed_factor = SPEED_SCALE / (float)delta;
                 float mult = powf(EXPONENTIAL_BASE, speed_factor);
@@ -93,10 +108,14 @@ static void dir_edge_cb(const struct device *dev, struct gpio_callback *cb, uint
 }
 
 /* ==== scroll report ==== */
-static void report_work_handler(struct k_work *work) {
+static void report_work_handler(struct k_work *work)
+{
+    struct k_work_delayable *dwork =
+        CONTAINER_OF(work, struct k_work_delayable, work);
 
-    struct k_work_delayable *dwork = CONTAINER_OF(work, struct k_work_delayable, work);
-    struct bbtrackball_data *data = CONTAINER_OF(dwork, struct bbtrackball_data, report_work);
+    struct bbtrackball_data *data =
+        CONTAINER_OF(dwork, struct bbtrackball_data, report_work);
+
     const struct device *dev = data->dev;
 
     if (dx_acc || dy_acc) {
@@ -104,10 +123,7 @@ static void report_work_handler(struct k_work *work) {
         int dx = -dx_acc;
         int dy = -dy_acc;
 
-        /* horizontal scroll */
         input_report_rel(dev, INPUT_REL_HWHEEL, dx, false, K_FOREVER);
-
-        /* vertical scroll */
         input_report_rel(dev, INPUT_REL_WHEEL, -dy, true, K_FOREVER);
 
         dx_acc = 0;
@@ -118,8 +134,8 @@ static void report_work_handler(struct k_work *work) {
 }
 
 /* ==== init ==== */
-static int bbtrackball_init(const struct device *dev) {
-
+static int bbtrackball_init(const struct device *dev)
+{
     struct bbtrackball_data *data = dev->data;
 
     LOG_INF("BB Trackball Scroll Driver Init");
@@ -136,7 +152,8 @@ static int bbtrackball_init(const struct device *dev) {
 
         gpio_init_callback(&gpio_cbs[i], dir_edge_cb, BIT(d->pin));
         gpio_add_callback(d->gpio_dev, &gpio_cbs[i]);
-        gpio_pin_interrupt_configure(d->gpio_dev, d->pin, GPIO_INT_EDGE_BOTH);
+        gpio_pin_interrupt_configure(d->gpio_dev, d->pin,
+                                     GPIO_INT_EDGE_BOTH);
     }
 
     data->dev = dev;
@@ -163,9 +180,7 @@ static int bbtrackball_init(const struct device *dev) {
 
 DT_INST_FOREACH_STATUS_OKAY(BBTRACKBALL_DEFINE);
 
-/* =====================================================================
- * LED driver uses this to detect movement
- * ===================================================================== */
+/* ==== LED movement detection ==== */
 bool trackball_is_moving(void)
 {
     return (dx_acc != 0) || (dy_acc != 0);
