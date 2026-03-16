@@ -1,5 +1,6 @@
 /*
- * bbtrackball_input_handler.c - BB Trackball Scroll (Optimized for Blackberry Micro Trackball)
+ * bbtrackball_input_handler.c
+ * Blackberry Trackball – Optimized Quadrature Driver
  *
  * SPDX-License-Identifier: MIT
  */
@@ -11,104 +12,112 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/input/input.h>
-#include <math.h>
 #include <stdbool.h>
 
 LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 
-/* ==== GPIO Pins ==== */
-#define DOWN_GPIO_PIN 9
-#define LEFT_GPIO_PIN 12
-#define UP_GPIO_PIN 5
-#define RIGHT_GPIO_PIN 27
+/* ==== GPIO ==== */
+
+#define LEFT_PIN   12
+#define RIGHT_PIN  27
+#define UP_PIN     5
+#define DOWN_PIN   9
 
 #define GPIO0_DEV DT_NODELABEL(gpio0)
 #define GPIO1_DEV DT_NODELABEL(gpio1)
 
-/* ==== Tuned Config (Blackberry Trackball) ==== */
+/* ==== tuning ==== */
 
-#define BASE_MOVE_PIXELS 6
-#define EXPONENTIAL_BASE 1.25f
-#define SPEED_SCALE 18.0f
+#define BASE_STEP            1
+#define SPEED_GAIN           25
+#define MAX_ACCEL            6
+#define REPORT_INTERVAL_MS   4
 
-#define REPORT_INTERVAL_MS 6
+/* ==== accumulators ==== */
 
-/* delta clamp */
-#define DELTA_MIN_MS 1
-#define DELTA_MAX_MS 20
+static float dx_acc = 0;
+static float dy_acc = 0;
 
-static int dx_acc = 0;
-static int dy_acc = 0;
+static uint32_t last_time = 0;
 
-/* ==== GPIO direction input ==== */
+/* ==== quadrature state ==== */
 
-typedef struct {
-    const struct device *gpio_dev;
-    int pin;
-    int last_state;
-    uint32_t last_time;
-    int sign;
-} DirInput;
+static uint8_t last_state_x = 0;
+static uint8_t last_state_y = 0;
 
-static DirInput dir_inputs[] = {
-    {DEVICE_DT_GET(GPIO0_DEV), LEFT_GPIO_PIN, 1, 0, -1},
-    {DEVICE_DT_GET(GPIO0_DEV), RIGHT_GPIO_PIN, 1, 0, +1},
-    {DEVICE_DT_GET(GPIO0_DEV), UP_GPIO_PIN, 1, 0, -1},
-    {DEVICE_DT_GET(GPIO1_DEV), DOWN_GPIO_PIN, 1, 0, +1},
+/* state transition table */
+static const int8_t quad_table[16] = {
+     0,-1, 1, 0,
+     1, 0, 0,-1,
+    -1, 0, 0, 1,
+     0, 1,-1, 0
 };
-
-static struct gpio_callback gpio_cbs[ARRAY_SIZE(dir_inputs)];
-
-/* ==== device data ==== */
 
 struct bbtrackball_data {
     const struct device *dev;
     struct k_work_delayable report_work;
 };
 
-/* ==== GPIO interrupt handler ==== */
+static struct gpio_callback gpio_cb;
 
-static void dir_edge_cb(const struct device *dev,
-                        struct gpio_callback *cb,
-                        uint32_t pins)
+/* ==== read helpers ==== */
+
+static inline uint8_t read_x(void)
 {
-    for (size_t i = 0; i < ARRAY_SIZE(dir_inputs); i++) {
-
-        DirInput *d = &dir_inputs[i];
-
-        if ((dev == d->gpio_dev) && (pins & BIT(d->pin))) {
-
-            int val = gpio_pin_get(dev, d->pin);
-
-            if (val != d->last_state) {
-
-                uint32_t now = k_uptime_get_32();
-                uint32_t delta = now - d->last_time;
-
-                if (delta < DELTA_MIN_MS)
-                    delta = DELTA_MIN_MS;
-
-                if (delta > DELTA_MAX_MS)
-                    delta = DELTA_MAX_MS;
-
-                float speed_factor = SPEED_SCALE / (float)delta;
-                float mult = powf(EXPONENTIAL_BASE, speed_factor);
-
-                int delta_px = (int)roundf(BASE_MOVE_PIXELS * mult);
-
-                if (i < 2)
-                    dx_acc += d->sign * delta_px;
-                else
-                    dy_acc += d->sign * delta_px;
-
-                d->last_state = val;
-                d->last_time = now;
-            }
-        }
-    }
+    int l = gpio_pin_get(DEVICE_DT_GET(GPIO0_DEV), LEFT_PIN);
+    int r = gpio_pin_get(DEVICE_DT_GET(GPIO1_DEV), RIGHT_PIN);
+    return (l << 1) | r;
 }
 
-/* ==== scroll report ==== */
+static inline uint8_t read_y(void)
+{
+    int u = gpio_pin_get(DEVICE_DT_GET(GPIO0_DEV), UP_PIN);
+    int d = gpio_pin_get(DEVICE_DT_GET(GPIO1_DEV), DOWN_PIN);
+    return (u << 1) | d;
+}
+
+/* ==== ISR ==== */
+
+static void edge_cb(const struct device *dev,
+                    struct gpio_callback *cb,
+                    uint32_t pins)
+{
+    uint32_t now = k_uptime_get_32();
+    uint32_t dt = now - last_time;
+    last_time = now;
+
+    if (dt == 0) dt = 1;
+
+    /* velocity estimate */
+    float speed = (float)SPEED_GAIN / (float)dt;
+    if (speed > MAX_ACCEL) speed = MAX_ACCEL;
+
+    float step = BASE_STEP + speed;
+
+    /* ==== X ==== */
+
+    uint8_t nx = read_x();
+    uint8_t idx = (last_state_x << 2) | nx;
+    int8_t s = quad_table[idx];
+
+    if (s)
+        dx_acc += s * step;
+
+    last_state_x = nx;
+
+    /* ==== Y ==== */
+
+    uint8_t ny = read_y();
+    idx = (last_state_y << 2) | ny;
+    s = quad_table[idx];
+
+    if (s)
+        dy_acc += s * step;
+
+    last_state_y = ny;
+}
+
+/* ==== report ==== */
 
 static void report_work_handler(struct k_work *work)
 {
@@ -120,16 +129,16 @@ static void report_work_handler(struct k_work *work)
 
     const struct device *dev = data->dev;
 
-    if (dx_acc || dy_acc) {
+    int dx = (int)dx_acc;
+    int dy = (int)dy_acc;
 
-        int dx = -dx_acc;
-        int dy = -dy_acc;
+    if (dx || dy) {
 
-        input_report_rel(dev, INPUT_REL_HWHEEL, dx, false, K_FOREVER);
+        input_report_rel(dev, INPUT_REL_HWHEEL, -dx, false, K_FOREVER);
         input_report_rel(dev, INPUT_REL_WHEEL, -dy, true, K_FOREVER);
 
-        dx_acc = 0;
-        dy_acc = 0;
+        dx_acc -= dx;
+        dy_acc -= dy;
     }
 
     k_work_schedule(&data->report_work, K_MSEC(REPORT_INTERVAL_MS));
@@ -141,50 +150,58 @@ static int bbtrackball_init(const struct device *dev)
 {
     struct bbtrackball_data *data = dev->data;
 
-    LOG_INF("BB Trackball Scroll Driver Init");
+    const struct device *gpio0 = DEVICE_DT_GET(GPIO0_DEV);
+    const struct device *gpio1 = DEVICE_DT_GET(GPIO1_DEV);
 
-    for (size_t i = 0; i < ARRAY_SIZE(dir_inputs); i++) {
+    gpio_pin_configure(gpio0, LEFT_PIN, GPIO_INPUT | GPIO_PULL_UP);
+    gpio_pin_configure(gpio1, RIGHT_PIN, GPIO_INPUT | GPIO_PULL_UP);
+    gpio_pin_configure(gpio0, UP_PIN, GPIO_INPUT | GPIO_PULL_UP);
+    gpio_pin_configure(gpio1, DOWN_PIN, GPIO_INPUT | GPIO_PULL_UP);
 
-        DirInput *d = &dir_inputs[i];
+    gpio_pin_interrupt_configure(gpio0, LEFT_PIN, GPIO_INT_EDGE_BOTH);
+    gpio_pin_interrupt_configure(gpio1, RIGHT_PIN, GPIO_INT_EDGE_BOTH);
+    gpio_pin_interrupt_configure(gpio0, UP_PIN, GPIO_INT_EDGE_BOTH);
+    gpio_pin_interrupt_configure(gpio1, DOWN_PIN, GPIO_INT_EDGE_BOTH);
 
-        gpio_pin_configure(d->gpio_dev, d->pin,
-                           GPIO_INPUT | GPIO_PULL_UP | GPIO_INT_EDGE_BOTH);
+    gpio_init_callback(&gpio_cb, edge_cb,
+        BIT(LEFT_PIN) | BIT(RIGHT_PIN) | BIT(UP_PIN) | BIT(DOWN_PIN));
 
-        d->last_state = gpio_pin_get(d->gpio_dev, d->pin);
-        d->last_time = k_uptime_get_32();
+    gpio_add_callback(gpio0, &gpio_cb);
+    gpio_add_callback(gpio1, &gpio_cb);
 
-        gpio_init_callback(&gpio_cbs[i], dir_edge_cb, BIT(d->pin));
-        gpio_add_callback(d->gpio_dev, &gpio_cbs[i]);
-        gpio_pin_interrupt_configure(d->gpio_dev, d->pin,
-                                     GPIO_INT_EDGE_BOTH);
-    }
+    last_state_x = read_x();
+    last_state_y = read_y();
+
+    last_time = k_uptime_get_32();
 
     data->dev = dev;
 
     k_work_init_delayable(&data->report_work, report_work_handler);
     k_work_schedule(&data->report_work, K_MSEC(REPORT_INTERVAL_MS));
 
+    LOG_INF("Blackberry Trackball Optimized Driver Init");
+
     return 0;
 }
 
-/* ==== device register ==== */
+/* ==== device ==== */
 
 #define BBTRACKBALL_INIT_PRIORITY CONFIG_INPUT_INIT_PRIORITY
 
-#define BBTRACKBALL_DEFINE(inst)                                      \
-    static struct bbtrackball_data bbtrackball_data_##inst;           \
-    DEVICE_DT_INST_DEFINE(inst,                                       \
-                          bbtrackball_init,                           \
-                          NULL,                                       \
-                          &bbtrackball_data_##inst,                   \
-                          NULL,                                       \
-                          POST_KERNEL,                                \
-                          BBTRACKBALL_INIT_PRIORITY,                  \
-                          NULL);
+#define BBTRACKBALL_DEFINE(inst)                              \
+    static struct bbtrackball_data bbtrackball_data_##inst;   \
+    DEVICE_DT_INST_DEFINE(inst,                               \
+        bbtrackball_init,                                     \
+        NULL,                                                 \
+        &bbtrackball_data_##inst,                             \
+        NULL,                                                 \
+        POST_KERNEL,                                          \
+        BBTRACKBALL_INIT_PRIORITY,                            \
+        NULL);
 
 DT_INST_FOREACH_STATUS_OKAY(BBTRACKBALL_DEFINE);
 
-/* ==== LED movement detection ==== */
+/* ==== movement detect ==== */
 
 bool trackball_is_moving(void)
 {
