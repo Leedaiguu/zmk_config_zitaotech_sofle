@@ -1,5 +1,5 @@
 /*
- * bbtrackball_input_handler.c - BB Trackball Scroll Only
+ * bbtrackball_input_handler.c - BB Trackball Scroll (Optimized for Blackberry Micro Trackball)
  *
  * SPDX-License-Identifier: MIT
  */
@@ -25,20 +25,23 @@ LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 #define GPIO0_DEV DT_NODELABEL(gpio0)
 #define GPIO1_DEV DT_NODELABEL(gpio1)
 
-/* ==== Config ==== */
-#define BASE_MOVE_PIXELS 1
-#define EXPONENTIAL_BASE 1.08f
-#define SPEED_SCALE 40.0f
-#define REPORT_INTERVAL_MS 15
+/* ==== Tuned Config (Blackberry Trackball) ==== */
 
-/* delta clamp (critical fix) */
+#define BASE_MOVE_PIXELS 6
+#define EXPONENTIAL_BASE 1.25f
+#define SPEED_SCALE 18.0f
+
+#define REPORT_INTERVAL_MS 6
+
+/* delta clamp */
 #define DELTA_MIN_MS 1
-#define DELTA_MAX_MS 50
+#define DELTA_MAX_MS 20
 
 static int dx_acc = 0;
 static int dy_acc = 0;
 
 /* ==== GPIO direction input ==== */
+
 typedef struct {
     const struct device *gpio_dev;
     int pin;
@@ -57,12 +60,14 @@ static DirInput dir_inputs[] = {
 static struct gpio_callback gpio_cbs[ARRAY_SIZE(dir_inputs)];
 
 /* ==== device data ==== */
+
 struct bbtrackball_data {
     const struct device *dev;
     struct k_work_delayable report_work;
 };
 
 /* ==== GPIO interrupt handler ==== */
+
 static void dir_edge_cb(const struct device *dev,
                         struct gpio_callback *cb,
                         uint32_t pins)
@@ -80,15 +85,11 @@ static void dir_edge_cb(const struct device *dev,
                 uint32_t now = k_uptime_get_32();
                 uint32_t delta = now - d->last_time;
 
-                /* ===== delta clamp fix ===== */
-
                 if (delta < DELTA_MIN_MS)
                     delta = DELTA_MIN_MS;
 
                 if (delta > DELTA_MAX_MS)
                     delta = DELTA_MAX_MS;
-
-                /* =========================== */
 
                 float speed_factor = SPEED_SCALE / (float)delta;
                 float mult = powf(EXPONENTIAL_BASE, speed_factor);
@@ -108,6 +109,7 @@ static void dir_edge_cb(const struct device *dev,
 }
 
 /* ==== scroll report ==== */
+
 static void report_work_handler(struct k_work *work)
 {
     struct k_work_delayable *dwork =
@@ -134,6 +136,7 @@ static void report_work_handler(struct k_work *work)
 }
 
 /* ==== init ==== */
+
 static int bbtrackball_init(const struct device *dev)
 {
     struct bbtrackball_data *data = dev->data;
@@ -165,6 +168,7 @@ static int bbtrackball_init(const struct device *dev)
 }
 
 /* ==== device register ==== */
+
 #define BBTRACKBALL_INIT_PRIORITY CONFIG_INPUT_INIT_PRIORITY
 
 #define BBTRACKBALL_DEFINE(inst)                                      \
@@ -181,6 +185,7 @@ static int bbtrackball_init(const struct device *dev)
 DT_INST_FOREACH_STATUS_OKAY(BBTRACKBALL_DEFINE);
 
 /* ==== LED movement detection ==== */
+
 bool trackball_is_moving(void)
 {
     return (dx_acc != 0) || (dy_acc != 0);
