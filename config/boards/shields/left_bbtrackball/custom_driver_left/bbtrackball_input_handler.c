@@ -1,6 +1,6 @@
 /*
  * bbtrackball_input_handler.c
- * Blackberry Micro Trackball – Stable Low-Latency Driver
+ * Blackberry Micro Trackball – Stable Driver (direction corrected)
  */
 
 #define DT_DRV_COMPAT zmk_bbtrackball
@@ -23,7 +23,7 @@ LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 #define GPIO0_DEV DT_NODELABEL(gpio0)
 #define GPIO1_DEV DT_NODELABEL(gpio1)
 
-/* ==== tuned values ==== */
+/* ==== tuned values (unchanged) ==== */
 
 #define BASE_STEP          1.3f
 #define SPEED_GAIN         20.0f
@@ -55,10 +55,10 @@ typedef struct {
 
 static Dir dirs[] = {
 
-    { DEVICE_DT_GET(GPIO0_DEV), LEFT_PIN,  1, +1,  0, 0 },
-    { DEVICE_DT_GET(GPIO1_DEV), RIGHT_PIN, 1, -1,  0, 0 },
-    { DEVICE_DT_GET(GPIO0_DEV), UP_PIN,    1,  0, +1, 0 },
-    { DEVICE_DT_GET(GPIO1_DEV), DOWN_PIN,  1,  0, -1, 0 }
+    { DEVICE_DT_GET(GPIO0_DEV), LEFT_PIN,  1, -1,  0, 0 },
+    { DEVICE_DT_GET(GPIO1_DEV), RIGHT_PIN, 1, +1,  0, 0 },
+    { DEVICE_DT_GET(GPIO0_DEV), UP_PIN,    1,  0, -1, 0 },
+    { DEVICE_DT_GET(GPIO1_DEV), DOWN_PIN,  1,  0, +1, 0 }
 
 };
 
@@ -78,18 +78,13 @@ static void edge_cb(const struct device *dev,
     uint32_t now = k_uptime_get_32();
     uint32_t dt = now - last_event_time;
 
-    if (dt < DT_MIN)
-        dt = DT_MIN;
-
-    if (dt > DT_MAX)
-        dt = DT_MAX;
+    if (dt < DT_MIN) dt = DT_MIN;
+    if (dt > DT_MAX) dt = DT_MAX;
 
     last_event_time = now;
 
     float accel = SPEED_GAIN / (float)dt;
-
-    if (accel > MAX_ACCEL)
-        accel = MAX_ACCEL;
+    if (accel > MAX_ACCEL) accel = MAX_ACCEL;
 
     float step = BASE_STEP + accel;
 
@@ -139,6 +134,7 @@ static void report_work_handler(struct k_work *work)
 
     if (dx || dy) {
 
+        /* 방향 수정: 기존 감각 유지, 축 반전 제거 */
         input_report_rel(dev, INPUT_REL_HWHEEL, dx, false, K_FOREVER);
         input_report_rel(dev, INPUT_REL_WHEEL, dy, true, K_FOREVER);
 
