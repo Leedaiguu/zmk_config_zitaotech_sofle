@@ -1,8 +1,6 @@
 /*
  * bbtrackball_input_handler.c
- * Blackberry Trackball – Optimized Quadrature Driver
- *
- * SPDX-License-Identifier: MIT
+ * Blackberry Micro Trackball – Stable Driver
  */
 
 #define DT_DRV_COMPAT zmk_bbtrackball
@@ -12,7 +10,6 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/input/input.h>
-#include <stdbool.h>
 
 LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 
@@ -26,95 +23,94 @@ LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 #define GPIO0_DEV DT_NODELABEL(gpio0)
 #define GPIO1_DEV DT_NODELABEL(gpio1)
 
-/* ==== tuning ==== */
+/* ==== tuned values ==== */
 
-#define BASE_STEP            1
-#define SPEED_GAIN           25
-#define MAX_ACCEL            6
-#define REPORT_INTERVAL_MS   4
+#define BASE_STEP          1.4f
+#define SPEED_GAIN         22.0f
+#define MAX_ACCEL          3.8f
+#define DEBOUNCE_MS        2
+#define REPORT_INTERVAL_MS 5
 
 /* ==== accumulators ==== */
 
-static float dx_acc = 0;
-static float dy_acc = 0;
+static float dx_acc = 0.0f;
+static float dy_acc = 0.0f;
 
-static uint32_t last_time = 0;
+static uint32_t last_event_time = 0;
 
-/* ==== quadrature state ==== */
+/* ==== direction input ==== */
 
-static uint8_t last_state_x = 0;
-static uint8_t last_state_y = 0;
+typedef struct {
+    const struct device *gpio;
+    int pin;
+    int last_state;
+    int sign_x;
+    int sign_y;
+    uint32_t last_time;
+} Dir;
 
-/* state transition table */
-static const int8_t quad_table[16] = {
-     0,-1, 1, 0,
-     1, 0, 0,-1,
-    -1, 0, 0, 1,
-     0, 1,-1, 0
+static Dir dirs[] = {
+    { DEVICE_DT_GET(GPIO0_DEV), LEFT_PIN,  1, -1,  0, 0 },
+    { DEVICE_DT_GET(GPIO1_DEV), RIGHT_PIN, 1, +1,  0, 0 },
+    { DEVICE_DT_GET(GPIO0_DEV), UP_PIN,    1,  0, -1, 0 },
+    { DEVICE_DT_GET(GPIO1_DEV), DOWN_PIN,  1,  0, +1, 0 }
 };
+
+static struct gpio_callback gpio_cbs[4];
 
 struct bbtrackball_data {
     const struct device *dev;
     struct k_work_delayable report_work;
 };
 
-static struct gpio_callback gpio_cb;
-
-/* ==== read helpers ==== */
-
-static inline uint8_t read_x(void)
-{
-    int l = gpio_pin_get(DEVICE_DT_GET(GPIO0_DEV), LEFT_PIN);
-    int r = gpio_pin_get(DEVICE_DT_GET(GPIO1_DEV), RIGHT_PIN);
-    return (l << 1) | r;
-}
-
-static inline uint8_t read_y(void)
-{
-    int u = gpio_pin_get(DEVICE_DT_GET(GPIO0_DEV), UP_PIN);
-    int d = gpio_pin_get(DEVICE_DT_GET(GPIO1_DEV), DOWN_PIN);
-    return (u << 1) | d;
-}
-
-/* ==== ISR ==== */
+/* ==== interrupt ==== */
 
 static void edge_cb(const struct device *dev,
                     struct gpio_callback *cb,
                     uint32_t pins)
 {
     uint32_t now = k_uptime_get_32();
-    uint32_t dt = now - last_time;
-    last_time = now;
+    uint32_t dt = now - last_event_time;
 
-    if (dt == 0) dt = 1;
+    if (dt == 0)
+        dt = 1;
 
-    /* velocity estimate */
-    float speed = (float)SPEED_GAIN / (float)dt;
-    if (speed > MAX_ACCEL) speed = MAX_ACCEL;
+    last_event_time = now;
+
+    float speed = SPEED_GAIN / (float)dt;
+
+    if (speed > MAX_ACCEL)
+        speed = MAX_ACCEL;
 
     float step = BASE_STEP + speed;
 
-    /* ==== X ==== */
+    for (int i = 0; i < 4; i++) {
 
-    uint8_t nx = read_x();
-    uint8_t idx = (last_state_x << 2) | nx;
-    int8_t s = quad_table[idx];
+        Dir *d = &dirs[i];
 
-    if (s)
-        dx_acc += s * step;
+        if (dev != d->gpio)
+            continue;
 
-    last_state_x = nx;
+        if (!(pins & BIT(d->pin)))
+            continue;
 
-    /* ==== Y ==== */
+        int val = gpio_pin_get(dev, d->pin);
 
-    uint8_t ny = read_y();
-    idx = (last_state_y << 2) | ny;
-    s = quad_table[idx];
+        if (val == d->last_state)
+            continue;
 
-    if (s)
-        dy_acc += s * step;
+        if (now - d->last_time < DEBOUNCE_MS)
+            continue;
 
-    last_state_y = ny;
+        d->last_time = now;
+        d->last_state = val;
+
+        if (d->sign_x)
+            dx_acc += d->sign_x * step;
+
+        if (d->sign_y)
+            dy_acc += d->sign_y * step;
+    }
 }
 
 /* ==== report ==== */
@@ -150,36 +146,31 @@ static int bbtrackball_init(const struct device *dev)
 {
     struct bbtrackball_data *data = dev->data;
 
-    const struct device *gpio0 = DEVICE_DT_GET(GPIO0_DEV);
-    const struct device *gpio1 = DEVICE_DT_GET(GPIO1_DEV);
+    for (int i = 0; i < 4; i++) {
 
-    gpio_pin_configure(gpio0, LEFT_PIN, GPIO_INPUT | GPIO_PULL_UP);
-    gpio_pin_configure(gpio1, RIGHT_PIN, GPIO_INPUT | GPIO_PULL_UP);
-    gpio_pin_configure(gpio0, UP_PIN, GPIO_INPUT | GPIO_PULL_UP);
-    gpio_pin_configure(gpio1, DOWN_PIN, GPIO_INPUT | GPIO_PULL_UP);
+        Dir *d = &dirs[i];
 
-    gpio_pin_interrupt_configure(gpio0, LEFT_PIN, GPIO_INT_EDGE_BOTH);
-    gpio_pin_interrupt_configure(gpio1, RIGHT_PIN, GPIO_INT_EDGE_BOTH);
-    gpio_pin_interrupt_configure(gpio0, UP_PIN, GPIO_INT_EDGE_BOTH);
-    gpio_pin_interrupt_configure(gpio1, DOWN_PIN, GPIO_INT_EDGE_BOTH);
+        gpio_pin_configure(d->gpio, d->pin,
+            GPIO_INPUT | GPIO_PULL_UP | GPIO_INT_EDGE_BOTH);
 
-    gpio_init_callback(&gpio_cb, edge_cb,
-        BIT(LEFT_PIN) | BIT(RIGHT_PIN) | BIT(UP_PIN) | BIT(DOWN_PIN));
+        d->last_state = gpio_pin_get(d->gpio, d->pin);
 
-    gpio_add_callback(gpio0, &gpio_cb);
-    gpio_add_callback(gpio1, &gpio_cb);
+        gpio_init_callback(&gpio_cbs[i], edge_cb, BIT(d->pin));
 
-    last_state_x = read_x();
-    last_state_y = read_y();
+        gpio_add_callback(d->gpio, &gpio_cbs[i]);
 
-    last_time = k_uptime_get_32();
+        gpio_pin_interrupt_configure(d->gpio, d->pin,
+            GPIO_INT_EDGE_BOTH);
+    }
+
+    last_event_time = k_uptime_get_32();
 
     data->dev = dev;
 
     k_work_init_delayable(&data->report_work, report_work_handler);
     k_work_schedule(&data->report_work, K_MSEC(REPORT_INTERVAL_MS));
 
-    LOG_INF("Blackberry Trackball Optimized Driver Init");
+    LOG_INF("Blackberry Trackball Driver Init");
 
     return 0;
 }
@@ -188,15 +179,15 @@ static int bbtrackball_init(const struct device *dev)
 
 #define BBTRACKBALL_INIT_PRIORITY CONFIG_INPUT_INIT_PRIORITY
 
-#define BBTRACKBALL_DEFINE(inst)                              \
-    static struct bbtrackball_data bbtrackball_data_##inst;   \
-    DEVICE_DT_INST_DEFINE(inst,                               \
-        bbtrackball_init,                                     \
-        NULL,                                                 \
-        &bbtrackball_data_##inst,                             \
-        NULL,                                                 \
-        POST_KERNEL,                                          \
-        BBTRACKBALL_INIT_PRIORITY,                            \
+#define BBTRACKBALL_DEFINE(inst)                          \
+    static struct bbtrackball_data bbtrackball_data_##inst; \
+    DEVICE_DT_INST_DEFINE(inst,                           \
+        bbtrackball_init,                                 \
+        NULL,                                             \
+        &bbtrackball_data_##inst,                         \
+        NULL,                                             \
+        POST_KERNEL,                                      \
+        BBTRACKBALL_INIT_PRIORITY,                        \
         NULL);
 
 DT_INST_FOREACH_STATUS_OKAY(BBTRACKBALL_DEFINE);
