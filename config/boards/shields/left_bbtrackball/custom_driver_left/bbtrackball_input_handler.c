@@ -1,6 +1,6 @@
 /*
  * bbtrackball_input_handler.c
- * Blackberry Micro Trackball – Stable Driver
+ * Blackberry Micro Trackball – Stable Low-Latency Driver
  */
 
 #define DT_DRV_COMPAT zmk_bbtrackball
@@ -25,11 +25,15 @@ LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 
 /* ==== tuned values ==== */
 
-#define BASE_STEP          1.4f
-#define SPEED_GAIN         22.0f
-#define MAX_ACCEL          3.8f
+#define BASE_STEP          1.3f
+#define SPEED_GAIN         20.0f
+#define MAX_ACCEL          3.0f
+
+#define DT_MIN             2
+#define DT_MAX             40
+
 #define DEBOUNCE_MS        2
-#define REPORT_INTERVAL_MS 5
+#define REPORT_INTERVAL_MS 4
 
 /* ==== accumulators ==== */
 
@@ -50,10 +54,12 @@ typedef struct {
 } Dir;
 
 static Dir dirs[] = {
-    { DEVICE_DT_GET(GPIO0_DEV), LEFT_PIN,  1, -1,  0, 0 },
-    { DEVICE_DT_GET(GPIO1_DEV), RIGHT_PIN, 1, +1,  0, 0 },
-    { DEVICE_DT_GET(GPIO0_DEV), UP_PIN,    1,  0, -1, 0 },
-    { DEVICE_DT_GET(GPIO1_DEV), DOWN_PIN,  1,  0, +1, 0 }
+
+    { DEVICE_DT_GET(GPIO0_DEV), LEFT_PIN,  1, +1,  0, 0 },
+    { DEVICE_DT_GET(GPIO1_DEV), RIGHT_PIN, 1, -1,  0, 0 },
+    { DEVICE_DT_GET(GPIO0_DEV), UP_PIN,    1,  0, +1, 0 },
+    { DEVICE_DT_GET(GPIO1_DEV), DOWN_PIN,  1,  0, -1, 0 }
+
 };
 
 static struct gpio_callback gpio_cbs[4];
@@ -72,17 +78,20 @@ static void edge_cb(const struct device *dev,
     uint32_t now = k_uptime_get_32();
     uint32_t dt = now - last_event_time;
 
-    if (dt == 0)
-        dt = 1;
+    if (dt < DT_MIN)
+        dt = DT_MIN;
+
+    if (dt > DT_MAX)
+        dt = DT_MAX;
 
     last_event_time = now;
 
-    float speed = SPEED_GAIN / (float)dt;
+    float accel = SPEED_GAIN / (float)dt;
 
-    if (speed > MAX_ACCEL)
-        speed = MAX_ACCEL;
+    if (accel > MAX_ACCEL)
+        accel = MAX_ACCEL;
 
-    float step = BASE_STEP + speed;
+    float step = BASE_STEP + accel;
 
     for (int i = 0; i < 4; i++) {
 
@@ -130,8 +139,8 @@ static void report_work_handler(struct k_work *work)
 
     if (dx || dy) {
 
-        input_report_rel(dev, INPUT_REL_HWHEEL, -dx, false, K_FOREVER);
-        input_report_rel(dev, INPUT_REL_WHEEL, -dy, true, K_FOREVER);
+        input_report_rel(dev, INPUT_REL_HWHEEL, dx, false, K_FOREVER);
+        input_report_rel(dev, INPUT_REL_WHEEL, dy, true, K_FOREVER);
 
         dx_acc -= dx;
         dy_acc -= dy;
