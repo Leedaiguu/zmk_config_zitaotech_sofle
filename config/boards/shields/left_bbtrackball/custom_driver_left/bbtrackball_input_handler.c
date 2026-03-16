@@ -23,7 +23,7 @@ LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 #define GPIO0_DEV DT_NODELABEL(gpio0)
 #define GPIO1_DEV DT_NODELABEL(gpio1)
 
-/* ==== tuned values (unchanged) ==== */
+/* ==== tuned values ==== */
 
 #define BASE_STEP          1.3f
 #define SPEED_GAIN         20.0f
@@ -53,10 +53,11 @@ typedef struct {
     uint32_t last_time;
 } Dir;
 
+/* 좌우 sign 반전 */
 static Dir dirs[] = {
 
-    { DEVICE_DT_GET(GPIO0_DEV), LEFT_PIN,  1, -1,  0, 0 },
-    { DEVICE_DT_GET(GPIO1_DEV), RIGHT_PIN, 1, +1,  0, 0 },
+    { DEVICE_DT_GET(GPIO0_DEV), LEFT_PIN,  1, +1,  0, 0 },
+    { DEVICE_DT_GET(GPIO1_DEV), RIGHT_PIN, 1, -1,  0, 0 },
     { DEVICE_DT_GET(GPIO0_DEV), UP_PIN,    1,  0, -1, 0 },
     { DEVICE_DT_GET(GPIO1_DEV), DOWN_PIN,  1,  0, +1, 0 }
 
@@ -134,7 +135,6 @@ static void report_work_handler(struct k_work *work)
 
     if (dx || dy) {
 
-        /* 방향 수정: 기존 감각 유지, 축 반전 제거 */
         input_report_rel(dev, INPUT_REL_HWHEEL, dx, false, K_FOREVER);
         input_report_rel(dev, INPUT_REL_WHEEL, dy, true, K_FOREVER);
 
