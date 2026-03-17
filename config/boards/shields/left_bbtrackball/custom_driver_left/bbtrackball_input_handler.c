@@ -53,10 +53,10 @@ typedef struct {
     uint32_t last_time;
 } Dir;
 
-/* 좌우 sign 반전 */
+/* LEFT만 GPIO1로 변경 */
 static Dir dirs[] = {
 
-    { DEVICE_DT_GET(GPIO0_DEV), LEFT_PIN,  1, +1,  0, 0 },
+    { DEVICE_DT_GET(GPIO1_DEV), LEFT_PIN,  1, +1,  0, 0 },  // ← 변경됨
     { DEVICE_DT_GET(GPIO1_DEV), RIGHT_PIN, 1, -1,  0, 0 },
     { DEVICE_DT_GET(GPIO0_DEV), UP_PIN,    1,  0, -1, 0 },
     { DEVICE_DT_GET(GPIO1_DEV), DOWN_PIN,  1,  0, +1, 0 }
