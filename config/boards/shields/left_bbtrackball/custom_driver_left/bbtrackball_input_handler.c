@@ -1,6 +1,6 @@
 /*
  * bbtrackball_input_handler.c
- * Blackberry Micro Trackball – Debug (GPIO log enabled)
+ * Blackberry Micro Trackball – Debug (printk enabled)
  */
 
 #define DT_DRV_COMPAT zmk_bbtrackball
@@ -10,6 +10,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/input/input.h>
+#include <zephyr/sys/printk.h>   // ← 추가
 
 LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 
@@ -98,9 +99,10 @@ static void edge_cb(const struct device *dev,
         if (!(pins & BIT(d->pin)))
             continue;
 
-        /* === 로그 추가 === */
+        /* === 여기 로그 === */
+        printk("PIN %d triggered\n", d->pin);
+
         int val = gpio_pin_get(dev, d->pin);
-        LOG_INF("GPIO event: pin=%d val=%d", d->pin, val);
 
         if (val == d->last_state)
             continue;
@@ -176,7 +178,7 @@ static int bbtrackball_init(const struct device *dev)
     k_work_init_delayable(&data->report_work, report_work_handler);
     k_work_schedule(&data->report_work, K_MSEC(REPORT_INTERVAL_MS));
 
-    LOG_INF("Trackball Debug Init");
+    printk("Trackball Debug Init\n");
 
     return 0;
 }
