@@ -15,8 +15,9 @@ LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 
 /* ==== GPIO ==== */
 
-#define LEFT_PIN   12
-#define RIGHT_PIN  27
+/* 좌우 핀 스왑 */
+#define LEFT_PIN   27
+#define RIGHT_PIN  12
 #define UP_PIN     5
 #define DOWN_PIN   9
 
@@ -53,11 +54,11 @@ typedef struct {
     uint32_t last_time;
 } Dir;
 
-/* LEFT만 GPIO1로 변경 */
+/* 좌우 핀만 바뀐 상태 유지 */
 static Dir dirs[] = {
 
-    { DEVICE_DT_GET(GPIO1_DEV), LEFT_PIN,  1, +1,  0, 0 },  // ← 변경됨
-    { DEVICE_DT_GET(GPIO1_DEV), RIGHT_PIN, 1, -1,  0, 0 },
+    { DEVICE_DT_GET(GPIO1_DEV), LEFT_PIN,  1, +1,  0, 0 },
+    { DEVICE_DT_GET(GPIO0_DEV), RIGHT_PIN, 1, -1,  0, 0 },
     { DEVICE_DT_GET(GPIO0_DEV), UP_PIN,    1,  0, -1, 0 },
     { DEVICE_DT_GET(GPIO1_DEV), DOWN_PIN,  1,  0, +1, 0 }
 
