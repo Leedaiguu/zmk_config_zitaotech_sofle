@@ -1,6 +1,6 @@
 /*
  * bbtrackball_input_handler.c
- * Blackberry Micro Trackball – Stable Driver (direction corrected)
+ * Blackberry Micro Trackball – Debug (GPIO log enabled)
  */
 
 #define DT_DRV_COMPAT zmk_bbtrackball
@@ -15,7 +15,6 @@ LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
 
 /* ==== GPIO ==== */
 
-/* 좌우 핀 스왑 */
 #define LEFT_PIN   27
 #define RIGHT_PIN  12
 #define UP_PIN     5
@@ -54,7 +53,6 @@ typedef struct {
     uint32_t last_time;
 } Dir;
 
-/* 좌우 핀만 바뀐 상태 유지 */
 static Dir dirs[] = {
 
     { DEVICE_DT_GET(GPIO1_DEV), LEFT_PIN,  1, +1,  0, 0 },
@@ -100,7 +98,9 @@ static void edge_cb(const struct device *dev,
         if (!(pins & BIT(d->pin)))
             continue;
 
+        /* === 로그 추가 === */
         int val = gpio_pin_get(dev, d->pin);
+        LOG_INF("GPIO event: pin=%d val=%d", d->pin, val);
 
         if (val == d->last_state)
             continue;
@@ -176,7 +176,7 @@ static int bbtrackball_init(const struct device *dev)
     k_work_init_delayable(&data->report_work, report_work_handler);
     k_work_schedule(&data->report_work, K_MSEC(REPORT_INTERVAL_MS));
 
-    LOG_INF("Blackberry Trackball Driver Init");
+    LOG_INF("Trackball Debug Init");
 
     return 0;
 }
